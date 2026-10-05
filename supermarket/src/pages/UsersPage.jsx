@@ -2,6 +2,56 @@ import { useState, useEffect, useCallback } from 'react'
 import userService from '../services/user.service.js'
 import '../styles/products.css'
 
+function UserForm({ formData, onChange, onSubmit, onCancel, submitText }) {
+  return (
+    <form className="products-form" onSubmit={onSubmit}>
+      <label>
+        Name
+        <input
+          name="name"
+          value={formData.name}
+          onChange={onChange}
+        />
+      </label>
+
+      <label>
+        Email
+        <input
+          name="email"
+          value={formData.email}
+          onChange={onChange}
+        />
+      </label>
+
+      <label>
+        Role
+        <input
+          name="role"
+          value={formData.role}
+          onChange={onChange}
+        />
+      </label>
+
+      <div className="products-form__actions">
+        <button
+          className="products-button products-button--secondary"
+          type="button"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+
+        <button
+          className="products-button products-button--primary"
+          type="submit"
+        >
+          {submitText}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 function UsersPage() {
   const [users, setUsers] = useState([])
 
@@ -12,22 +62,8 @@ function UsersPage() {
   })
 
   const [selectedUser, setSelectedUser] = useState(null)
-
   const [isCreateOpenModal, setIsCreateOpenModal] = useState(false)
   const [isEditOpenModal, setIsEditOpenModal] = useState(false)
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await userService.getAllUsers()
-        setUsers(response.data.data)
-      } catch (error) {
-        console.error('Error fetching users:', error)
-      }
-    }
-
-    fetchUsers()
-  }, [])
 
   const loadUsers = useCallback(async () => {
     try {
@@ -37,6 +73,10 @@ function UsersPage() {
       console.error('Error fetching users:', error)
     }
   }, [])
+
+  useEffect(() => {
+    loadUsers()
+  }, [loadUsers])
 
   const openCreateModal = () => {
     setFormData({
@@ -70,16 +110,7 @@ function UsersPage() {
     setIsEditOpenModal(false)
   }
 
-  const handleCreateUser = (event) => {
-    const { name, value } = event.target
-
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value
-    }))
-  }
-
-  const handleUpdateUser = (event) => {
+  const handleChangeUser = (event) => {
     const { name, value } = event.target
 
     setFormData((prevData) => ({
@@ -91,11 +122,7 @@ function UsersPage() {
   const handleSubmitCreate = async (event) => {
     event.preventDefault()
 
-    await userService.createUser({
-      name: formData.name,
-      email: formData.email,
-      role: formData.role
-    })
+    await userService.createUser(formData)
 
     closeCreateModal()
     await loadUsers()
@@ -105,24 +132,12 @@ function UsersPage() {
     event.preventDefault()
 
     try {
-      await userService.updateUser(
-        selectedUser.id,
-        {
-          name: formData.name,
-          email: formData.email,
-          role: formData.role
-        }
-      )
+      await userService.updateUser(selectedUser.id, formData)
 
       setUsers((previousUsers) =>
         previousUsers.map((user) =>
           String(user.id) === String(selectedUser.id)
-            ? {
-                ...user,
-                name: formData.name,
-                email: formData.email,
-                role: formData.role
-              }
+            ? { ...user, ...formData }
             : user
         )
       )
@@ -139,6 +154,10 @@ function UsersPage() {
     await userService.deleteUser(userId)
     await loadUsers()
   }
+
+  const closeModal = isCreateOpenModal
+    ? closeCreateModal
+    : closeEditModal
 
   return (
     <section className="products-page">
@@ -208,138 +227,38 @@ function UsersPage() {
         </div>
       </div>
 
-      {isCreateOpenModal && (
+      {(isCreateOpenModal || isEditOpenModal) && (
         <div className="products-modal-backdrop">
           <div className="products-modal">
             <div className="products-modal__header">
               <div>
                 <p className="products-modal__eyebrow">Users</p>
-                <h3>Create user</h3>
+                <h3>
+                  {isCreateOpenModal ? 'Create user' : 'Update user'}
+                </h3>
               </div>
 
               <button
                 className="products-modal__close"
                 type="button"
-                aria-label="Close create user form"
-                onClick={closeCreateModal}
+                aria-label="Close user form"
+                onClick={closeModal}
               >
                 ×
               </button>
             </div>
 
-            <form className="products-form" onSubmit={handleSubmitCreate}>
-              <label>
-                Name
-                <input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleCreateUser}
-                />
-              </label>
-
-              <label>
-                Email
-                <input
-                  name="email"
-                  value={formData.email}
-                  onChange={handleCreateUser}
-                />
-              </label>
-
-              <label>
-                Role
-                <input
-                  name="role"
-                  value={formData.role}
-                  onChange={handleCreateUser}
-                />
-              </label>
-
-              <div className="products-form__actions">
-                <button
-                  className="products-button products-button--secondary"
-                  type="button"
-                  onClick={closeCreateModal}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  className="products-button products-button--primary"
-                  type="submit"
-                >
-                  Create User
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {isEditOpenModal && (
-        <div className="products-modal-backdrop">
-          <div className="products-modal">
-            <div className="products-modal__header">
-              <div>
-                <p className="products-modal__eyebrow">Users</p>
-                <h3>Update user</h3>
-              </div>
-
-              <button
-                className="products-modal__close"
-                type="button"
-                aria-label="Close update user form"
-                onClick={closeEditModal}
-              >
-                ×
-              </button>
-            </div>
-
-            <form className="products-form" onSubmit={handleSubmitUpdate}>
-              <label>
-                Name
-                <input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleUpdateUser}
-                />
-              </label>
-
-              <label>
-                Email
-                <input
-                  name="email"
-                  value={formData.email}
-                  onChange={handleUpdateUser}
-                />
-              </label>
-
-              <label>
-                Role
-                <input
-                  name="role"
-                  value={formData.role}
-                  onChange={handleUpdateUser}
-                />
-              </label>
-
-              <div className="products-form__actions">
-                <button
-                  className="products-button products-button--secondary"
-                  type="button"
-                  onClick={closeEditModal}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  className="products-button products-button--primary"
-                  type="submit"
-                >
-                  Update
-                </button>
-              </div>
-            </form>
+            <UserForm
+              formData={formData}
+              onChange={handleChangeUser}
+              onSubmit={
+                isCreateOpenModal
+                  ? handleSubmitCreate
+                  : handleSubmitUpdate
+              }
+              onCancel={closeModal}
+              submitText={isCreateOpenModal ? 'Create User' : 'Update'}
+            />
           </div>
         </div>
       )}

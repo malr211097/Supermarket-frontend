@@ -2,6 +2,49 @@ import { useState, useEffect, useCallback } from 'react'
 import saleService from '../services/sale.service.js'
 import '../styles/products.css'
 
+function SaleForm({ formData, onChange, onSubmit, onCancel, submitText }) {
+  return (
+    <form className="products-form" onSubmit={onSubmit}>
+      <label>
+        User ID
+        <input
+          type="number"
+          name="userId"
+          value={formData.userId}
+          onChange={onChange}
+        />
+      </label>
+
+      <label>
+        Date
+        <input
+          type="date"
+          name="date"
+          value={formData.date}
+          onChange={onChange}
+        />
+      </label>
+
+      <div className="products-form__actions">
+        <button
+          className="products-button products-button--secondary"
+          type="button"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+
+        <button
+          className="products-button products-button--primary"
+          type="submit"
+        >
+          {submitText}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 function SalesPage() {
   const [sales, setSales] = useState([])
 
@@ -11,22 +54,8 @@ function SalesPage() {
   })
 
   const [selectedSale, setSelectedSale] = useState(null)
-
   const [isCreateOpenModal, setIsCreateOpenModal] = useState(false)
   const [isEditOpenModal, setIsEditOpenModal] = useState(false)
-
-  useEffect(() => {
-    const fetchSales = async () => {
-      try {
-        const response = await saleService.getAllSales()
-        setSales(response.data.data)
-      } catch (error) {
-        console.error('Error fetching sales:', error)
-      }
-    }
-
-    fetchSales()
-  }, [])
 
   const loadSales = useCallback(async () => {
     try {
@@ -36,6 +65,10 @@ function SalesPage() {
       console.error('Error fetching sales:', error)
     }
   }, [])
+
+  useEffect(() => {
+    loadSales()
+  }, [loadSales])
 
   const openCreateModal = () => {
     setFormData({
@@ -67,16 +100,7 @@ function SalesPage() {
     setIsEditOpenModal(false)
   }
 
-  const handleCreateSale = (event) => {
-    const { name, value } = event.target
-
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value
-    }))
-  }
-
-  const handleUpdateSale = (event) => {
+  const handleChangeSale = (event) => {
     const { name, value } = event.target
 
     setFormData((prevData) => ({
@@ -88,10 +112,7 @@ function SalesPage() {
   const handleSubmitCreate = async (event) => {
     event.preventDefault()
 
-    await saleService.createSale({
-      userId: formData.userId,
-      date: formData.date
-    })
+    await saleService.createSale(formData)
 
     closeCreateModal()
     await loadSales()
@@ -101,13 +122,7 @@ function SalesPage() {
     event.preventDefault()
 
     try {
-      await saleService.updateSale(
-        selectedSale.id,
-        {
-          userId: formData.userId,
-          date: formData.date
-        }
-      )
+      await saleService.updateSale(selectedSale.id, formData)
 
       closeEditModal()
       await loadSales()
@@ -122,6 +137,10 @@ function SalesPage() {
     await saleService.deleteSale(saleId)
     await loadSales()
   }
+
+  const closeModal = isCreateOpenModal
+    ? closeCreateModal
+    : closeEditModal
 
   return (
     <section className="products-page">
@@ -193,124 +212,38 @@ function SalesPage() {
         </div>
       </div>
 
-      {isCreateOpenModal && (
+      {(isCreateOpenModal || isEditOpenModal) && (
         <div className="products-modal-backdrop">
           <div className="products-modal">
             <div className="products-modal__header">
               <div>
                 <p className="products-modal__eyebrow">Sales</p>
-                <h3>Create sale</h3>
+                <h3>
+                  {isCreateOpenModal ? 'Create sale' : 'Update sale'}
+                </h3>
               </div>
 
               <button
                 className="products-modal__close"
                 type="button"
-                aria-label="Close create sale form"
-                onClick={closeCreateModal}
+                aria-label="Close sale form"
+                onClick={closeModal}
               >
                 ×
               </button>
             </div>
 
-            <form className="products-form" onSubmit={handleSubmitCreate}>
-              <label>
-                User ID
-                <input
-                  type="number"
-                  name="userId"
-                  value={formData.userId}
-                  onChange={handleCreateSale}
-                />
-              </label>
-
-              <label>
-                Date
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleCreateSale}
-                />
-              </label>
-
-              <div className="products-form__actions">
-                <button
-                  className="products-button products-button--secondary"
-                  type="button"
-                  onClick={closeCreateModal}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  className="products-button products-button--primary"
-                  type="submit"
-                >
-                  Create Sale
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {isEditOpenModal && (
-        <div className="products-modal-backdrop">
-          <div className="products-modal">
-            <div className="products-modal__header">
-              <div>
-                <p className="products-modal__eyebrow">Sales</p>
-                <h3>Update sale</h3>
-              </div>
-
-              <button
-                className="products-modal__close"
-                type="button"
-                aria-label="Close update sale form"
-                onClick={closeEditModal}
-              >
-                ×
-              </button>
-            </div>
-
-            <form className="products-form" onSubmit={handleSubmitUpdate}>
-              <label>
-                User ID
-                <input
-                  type="number"
-                  name="userId"
-                  value={formData.userId}
-                  onChange={handleUpdateSale}
-                />
-              </label>
-
-              <label>
-                Date
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleUpdateSale}
-                />
-              </label>
-
-              <div className="products-form__actions">
-                <button
-                  className="products-button products-button--secondary"
-                  type="button"
-                  onClick={closeEditModal}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  className="products-button products-button--primary"
-                  type="submit"
-                >
-                  Update
-                </button>
-              </div>
-            </form>
+            <SaleForm
+              formData={formData}
+              onChange={handleChangeSale}
+              onSubmit={
+                isCreateOpenModal
+                  ? handleSubmitCreate
+                  : handleSubmitUpdate
+              }
+              onCancel={closeModal}
+              submitText={isCreateOpenModal ? 'Create Sale' : 'Update'}
+            />
           </div>
         </div>
       )}

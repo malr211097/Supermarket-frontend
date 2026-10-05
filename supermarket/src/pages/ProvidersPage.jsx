@@ -2,6 +2,65 @@ import { useState, useEffect, useCallback } from 'react'
 import providerService from '../services/provider.service.js'
 import '../styles/products.css'
 
+function ProviderForm({ formData, onChange, onSubmit, onCancel, submitText }) {
+  return (
+    <form className="products-form" onSubmit={onSubmit}>
+      <label>
+        Name
+        <input
+          name="name"
+          value={formData.name}
+          onChange={onChange}
+        />
+      </label>
+
+      <label>
+        Phone
+        <input
+          name="phone"
+          value={formData.phone}
+          onChange={onChange}
+        />
+      </label>
+
+      <label>
+        Email
+        <input
+          name="email"
+          value={formData.email}
+          onChange={onChange}
+        />
+      </label>
+
+      <label>
+        City
+        <input
+          name="city"
+          value={formData.city}
+          onChange={onChange}
+        />
+      </label>
+
+      <div className="products-form__actions">
+        <button
+          className="products-button products-button--secondary"
+          type="button"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+
+        <button
+          className="products-button products-button--primary"
+          type="submit"
+        >
+          {submitText}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 function ProvidersPage() {
   const [providers, setProviders] = useState([])
 
@@ -13,22 +72,8 @@ function ProvidersPage() {
   })
 
   const [selectedProvider, setSelectedProvider] = useState(null)
-
   const [isCreateOpenModal, setIsCreateOpenModal] = useState(false)
   const [isEditOpenModal, setIsEditOpenModal] = useState(false)
-
-  useEffect(() => {
-    const fetchProviders = async () => {
-      try {
-        const response = await providerService.getAllProviders()
-        setProviders(response.data.data)
-      } catch (error) {
-        console.error('Error fetching providers:', error)
-      }
-    }
-
-    fetchProviders()
-  }, [])
 
   const loadProviders = useCallback(async () => {
     try {
@@ -38,6 +83,10 @@ function ProvidersPage() {
       console.error('Error fetching providers:', error)
     }
   }, [])
+
+  useEffect(() => {
+    loadProviders()
+  }, [loadProviders])
 
   const openCreateModal = () => {
     setFormData({
@@ -73,16 +122,7 @@ function ProvidersPage() {
     setIsEditOpenModal(false)
   }
 
-  const handleCreateProvider = (event) => {
-    const { name, value } = event.target
-
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value
-    }))
-  }
-
-  const handleUpdateProvider = (event) => {
+  const handleChangeProvider = (event) => {
     const { name, value } = event.target
 
     setFormData((prevData) => ({
@@ -94,12 +134,7 @@ function ProvidersPage() {
   const handleSubmitCreate = async (event) => {
     event.preventDefault()
 
-    await providerService.createProvider({
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email,
-      city: formData.city
-    })
+    await providerService.createProvider(formData)
 
     closeCreateModal()
     await loadProviders()
@@ -109,26 +144,12 @@ function ProvidersPage() {
     event.preventDefault()
 
     try {
-      await providerService.updateProvider(
-        selectedProvider.id,
-        {
-          name: formData.name,
-          phone: formData.phone,
-          email: formData.email,
-          city: formData.city
-        }
-      )
+      await providerService.updateProvider(selectedProvider.id, formData)
 
       setProviders((previousProviders) =>
         previousProviders.map((provider) =>
           String(provider.id) === String(selectedProvider.id)
-            ? {
-                ...provider,
-                name: formData.name,
-                phone: formData.phone,
-                email: formData.email,
-                city: formData.city
-              }
+            ? { ...provider, ...formData }
             : provider
         )
       )
@@ -145,6 +166,10 @@ function ProvidersPage() {
     await providerService.deleteProvider(providerId)
     await loadProviders()
   }
+
+  const closeModal = isCreateOpenModal
+    ? closeCreateModal
+    : closeEditModal
 
   return (
     <section className="products-page">
@@ -216,156 +241,38 @@ function ProvidersPage() {
         </div>
       </div>
 
-      {isCreateOpenModal && (
+      {(isCreateOpenModal || isEditOpenModal) && (
         <div className="products-modal-backdrop">
           <div className="products-modal">
             <div className="products-modal__header">
               <div>
                 <p className="products-modal__eyebrow">Providers</p>
-                <h3>Create provider</h3>
+                <h3>
+                  {isCreateOpenModal ? 'Create provider' : 'Update provider'}
+                </h3>
               </div>
 
               <button
                 className="products-modal__close"
                 type="button"
-                aria-label="Close create provider form"
-                onClick={closeCreateModal}
+                aria-label="Close provider form"
+                onClick={closeModal}
               >
                 ×
               </button>
             </div>
 
-            <form className="products-form" onSubmit={handleSubmitCreate}>
-              <label>
-                Name
-                <input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleCreateProvider}
-                />
-              </label>
-
-              <label>
-                Phone
-                <input
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleCreateProvider}
-                />
-              </label>
-
-              <label>
-                Email
-                <input
-                  name="email"
-                  value={formData.email}
-                  onChange={handleCreateProvider}
-                />
-              </label>
-
-              <label>
-                City
-                <input
-                  name="city"
-                  value={formData.city}
-                  onChange={handleCreateProvider}
-                />
-              </label>
-
-              <div className="products-form__actions">
-                <button
-                  className="products-button products-button--secondary"
-                  type="button"
-                  onClick={closeCreateModal}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  className="products-button products-button--primary"
-                  type="submit"
-                >
-                  Create Provider
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {isEditOpenModal && (
-        <div className="products-modal-backdrop">
-          <div className="products-modal">
-            <div className="products-modal__header">
-              <div>
-                <p className="products-modal__eyebrow">Providers</p>
-                <h3>Update provider</h3>
-              </div>
-
-              <button
-                className="products-modal__close"
-                type="button"
-                aria-label="Close update provider form"
-                onClick={closeEditModal}
-              >
-                ×
-              </button>
-            </div>
-
-            <form className="products-form" onSubmit={handleSubmitUpdate}>
-              <label>
-                Name
-                <input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleUpdateProvider}
-                />
-              </label>
-
-              <label>
-                Phone
-                <input
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleUpdateProvider}
-                />
-              </label>
-
-              <label>
-                Email
-                <input
-                  name="email"
-                  value={formData.email}
-                  onChange={handleUpdateProvider}
-                />
-              </label>
-
-              <label>
-                City
-                <input
-                  name="city"
-                  value={formData.city}
-                  onChange={handleUpdateProvider}
-                />
-              </label>
-
-              <div className="products-form__actions">
-                <button
-                  className="products-button products-button--secondary"
-                  type="button"
-                  onClick={closeEditModal}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  className="products-button products-button--primary"
-                  type="submit"
-                >
-                  Update
-                </button>
-              </div>
-            </form>
+            <ProviderForm
+              formData={formData}
+              onChange={handleChangeProvider}
+              onSubmit={
+                isCreateOpenModal
+                  ? handleSubmitCreate
+                  : handleSubmitUpdate
+              }
+              onCancel={closeModal}
+              submitText={isCreateOpenModal ? 'Create Provider' : 'Update'}
+            />
           </div>
         </div>
       )}

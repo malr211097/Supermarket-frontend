@@ -2,6 +2,74 @@ import { useState, useEffect, useCallback } from 'react'
 import productService from '../services/product.service.js'
 import '../styles/products.css'
 
+function ProductForm({ formData, onChange, onSubmit, onCancel, submitText }) {
+  return (
+    <form className="products-form" onSubmit={onSubmit}>
+      <label>
+        Name
+        <input
+          name="name"
+          value={formData.name}
+          onChange={onChange}
+        />
+      </label>
+
+      <label>
+        Description
+        <input
+          name="description"
+          value={formData.description}
+          onChange={onChange}
+        />
+      </label>
+
+      <label>
+        Price
+        <input
+          name="price"
+          value={formData.price}
+          onChange={onChange}
+        />
+      </label>
+
+      <label>
+        Stock
+        <input
+          name="stock"
+          value={formData.stock}
+          onChange={onChange}
+        />
+      </label>
+
+      <label>
+        Provider ID
+        <input
+          name="providerId"
+          value={formData.providerId}
+          onChange={onChange}
+        />
+      </label>
+
+      <div className="products-form__actions">
+        <button
+          className="products-button products-button--secondary"
+          type="button"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+
+        <button
+          className="products-button products-button--primary"
+          type="submit"
+        >
+          {submitText}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 function ProductsPage() {
   const [products, setProducts] = useState([])
 
@@ -14,23 +82,8 @@ function ProductsPage() {
   })
 
   const [selectedProduct, setSelectedProduct] = useState(null)
-
   const [isCreateOpenModal, setIsCreateOpenModal] = useState(false)
-  const [isViewOpenModal, setIsViewOpenModal] = useState(false)
   const [isEditOpenModal, setIsEditOpenModal] = useState(false)
-
-  useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const response = await productService.getAllProducts()
-        setProducts(response.data.data)
-      } catch (error) {
-        console.error('Error fetching products:', error)
-      }
-    }
-
-    fetchProduct()
-  }, [])
 
   const loadProducts = useCallback(async () => {
     try {
@@ -40,6 +93,10 @@ function ProductsPage() {
       console.error('Error fetching products:', error)
     }
   }, [])
+
+  useEffect(() => {
+    loadProducts()
+  }, [loadProducts])
 
   const openCreateModal = () => {
     setFormData({
@@ -51,7 +108,6 @@ function ProductsPage() {
     })
 
     setIsCreateOpenModal(true)
-    setIsViewOpenModal(false)
     setIsEditOpenModal(false)
   }
 
@@ -67,7 +123,6 @@ function ProductsPage() {
     })
 
     setIsCreateOpenModal(false)
-    setIsViewOpenModal(false)
     setIsEditOpenModal(true)
   }
 
@@ -79,16 +134,7 @@ function ProductsPage() {
     setIsEditOpenModal(false)
   }
 
-  const handleCreateProduct = (event) => {
-    const { name, value } = event.target
-
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value
-    }))
-  }
-
-  const handleUpdateProduct = (event) => {
+  const handleChangeProduct = (event) => {
     const { name, value } = event.target
 
     setFormData((prevData) => ({
@@ -100,13 +146,7 @@ function ProductsPage() {
   const handleSubmitCreate = async (event) => {
     event.preventDefault()
 
-    await productService.createProduct({
-      name: formData.name,
-      description: formData.description,
-      price: formData.price,
-      stock: formData.stock,
-      providerId: formData.providerId
-    })
+    await productService.createProduct(formData)
 
     closeCreateModal()
     await loadProducts()
@@ -116,28 +156,12 @@ function ProductsPage() {
     event.preventDefault()
 
     try {
-      await productService.updateProduct(
-        selectedProduct.id,
-        {
-          name: formData.name,
-          description: formData.description,
-          price: formData.price,
-          stock: formData.stock,
-          providerId: formData.providerId
-        }
-      )
+      await productService.updateProduct(selectedProduct.id, formData)
 
       setProducts((previousProducts) =>
         previousProducts.map((product) =>
           String(product.id) === String(selectedProduct.id)
-            ? {
-                ...product,
-                name: formData.name,
-                description: formData.description,
-                price: formData.price,
-                stock: formData.stock,
-                providerId: formData.providerId
-              }
+            ? { ...product, ...formData }
             : product
         )
       )
@@ -156,6 +180,10 @@ function ProductsPage() {
     await productService.deleteProduct(productId)
     await loadProducts()
   }
+
+  const closeModal = isCreateOpenModal
+    ? closeCreateModal
+    : closeEditModal
 
   return (
     <section className="products-page">
@@ -233,7 +261,7 @@ function ProductsPage() {
         </div>
       </div>
 
-      {isCreateOpenModal && (
+      {(isCreateOpenModal || isEditOpenModal) && (
         <div className="products-modal-backdrop">
           <div className="products-modal">
             <div className="products-modal__header">
@@ -241,176 +269,32 @@ function ProductsPage() {
                 <p className="products-modal__eyebrow">
                   Product catalog
                 </p>
-                <h3>Create product</h3>
+                <h3>
+                  {isCreateOpenModal ? 'Create product' : 'Update product'}
+                </h3>
               </div>
 
               <button
                 className="products-modal__close"
                 type="button"
-                aria-label="Close create product form"
-                onClick={closeCreateModal}
+                aria-label="Close product form"
+                onClick={closeModal}
               >
                 ×
               </button>
             </div>
 
-            <form
-              className="products-form"
-              onSubmit={handleSubmitCreate}
-            >
-              <label>
-                Name
-                <input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleCreateProduct}
-                />
-              </label>
-
-              <label>
-                Description
-                <input
-                  name="description"
-                  value={formData.description}
-                  onChange={handleCreateProduct}
-                />
-              </label>
-
-              <label>
-                Price
-                <input
-                  name="price"
-                  value={formData.price}
-                  onChange={handleCreateProduct}
-                />
-              </label>
-
-              <label>
-                Stock
-                <input
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleCreateProduct}
-                />
-              </label>
-
-              <label>
-                Provider ID
-                <input
-                  name="providerId"
-                  value={formData.providerId}
-                  onChange={handleCreateProduct}
-                />
-              </label>
-
-              <div className="products-form__actions">
-                <button
-                  className="products-button products-button--secondary"
-                  type="button"
-                  onClick={closeCreateModal}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  className="products-button products-button--primary"
-                  type="submit"
-                >
-                  Create Product
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {isEditOpenModal && (
-        <div className="products-modal-backdrop">
-          <div className="products-modal">
-            <div className="products-modal__header">
-              <div>
-                <p className="products-modal__eyebrow">
-                  Product catalog
-                </p>
-                <h3>Update product</h3>
-              </div>
-
-              <button
-                className="products-modal__close"
-                type="button"
-                aria-label="Close update product form"
-                onClick={closeEditModal}
-              >
-                ×
-              </button>
-            </div>
-
-            <form
-              className="products-form"
-              onSubmit={handleSubmitUpdate}
-            >
-              <label>
-                Name
-                <input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleUpdateProduct}
-                />
-              </label>
-
-              <label>
-                Description
-                <input
-                  name="description"
-                  value={formData.description}
-                  onChange={handleUpdateProduct}
-                />
-              </label>
-
-              <label>
-                Price
-                <input
-                  name="price"
-                  value={formData.price}
-                  onChange={handleUpdateProduct}
-                />
-              </label>
-
-              <label>
-                Stock
-                <input
-                  name="stock"
-                  value={formData.stock}
-                  onChange={handleUpdateProduct}
-                />
-              </label>
-
-              <label>
-                Provider ID
-                <input
-                  name="providerId"
-                  value={formData.providerId}
-                  onChange={handleUpdateProduct}
-                />
-              </label>
-
-              <div className="products-form__actions">
-                <button
-                  className="products-button products-button--secondary"
-                  type="button"
-                  onClick={closeEditModal}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  className="products-button products-button--primary"
-                  type="submit"
-                >
-                  Update
-                </button>
-              </div>
-            </form>
+            <ProductForm
+              formData={formData}
+              onChange={handleChangeProduct}
+              onSubmit={
+                isCreateOpenModal
+                  ? handleSubmitCreate
+                  : handleSubmitUpdate
+              }
+              onCancel={closeModal}
+              submitText={isCreateOpenModal ? 'Create Product' : 'Update'}
+            />
           </div>
         </div>
       )}
